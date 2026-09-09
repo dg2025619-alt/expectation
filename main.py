@@ -58,6 +58,22 @@ n_years = len(yearly_df)
 start_year = int(yearly_df["연도"].min())
 end_year = int(yearly_df["연도"].max())
 
+slope_per_100 = slope * 100
+
+# 최근 20년 구간 회귀 (자료가 남아 있는 연도 중 최근 20개)
+RECENT_YEARS = 20
+recent_df = yearly_df[yearly_df["연도"] > end_year - RECENT_YEARS]
+
+has_recent_slope = len(recent_df) >= 2
+if has_recent_slope:
+    rx = recent_df["연도"].values.astype(float)
+    ry = recent_df["연평균기온"].values.astype(float)
+    r_slope, r_intercept, r_r_value, r_p_value, r_std_err = stats.linregress(rx, ry)
+    recent_slope_per_100 = r_slope * 100
+    recent_start_year = int(recent_df["연도"].min())
+    recent_end_year = int(recent_df["연도"].max())
+    recent_n_years = len(recent_df)
+
 # ---------------- 산점도 + 회귀 직선 ----------------
 st.subheader("연도별 평균기온 산점도와 회귀 직선")
 
@@ -101,6 +117,56 @@ st.info(
     f"시작 연도: **{start_year}년**, 끝 연도: **{end_year}년**  \n"
     f"(기준: {CUTOFF_YEAR}년까지 자료, 연간 관측일수 {MIN_OBS_DAYS}일 이상인 해만 사용)"
 )
+
+# ---------------- 100년당 상승 폭 ----------------
+st.markdown(
+    f"""
+    <div style="text-align:center; padding: 20px 0;">
+        <div style="font-size:20px; color:gray;">100년에 오르는 기온 (전체 기간 기준)</div>
+        <div style="font-size:60px; font-weight:bold; color:#1f77b4;">
+            {slope_per_100:+.2f} °C / 100년
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ---------------- 전체 기간 vs 최근 20년 기울기 비교 ----------------
+st.subheader("기울기 비교: 전체 기간 vs 최근 20년")
+
+if has_recent_slope:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding:15px; border-radius:10px; background-color:#f0f2f6;">
+                <div style="font-size:16px; color:gray;">전체 기간 ({start_year}~{end_year}년, {n_years}개 연도)</div>
+                <div style="font-size:44px; font-weight:bold; color:#1f77b4;">
+                    {slope_per_100:+.2f} °C / 100년
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c2:
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding:15px; border-radius:10px; background-color:#f0f2f6;">
+                <div style="font-size:16px; color:gray;">최근 20년 ({recent_start_year}~{recent_end_year}년, {recent_n_years}개 연도)</div>
+                <div style="font-size:44px; font-weight:bold; color:#d62728;">
+                    {recent_slope_per_100:+.2f} °C / 100년
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    diff = recent_slope_per_100 - slope_per_100
+    st.caption(
+        f"최근 20년 기울기가 전체 기간 기울기보다 100년당 {diff:+.2f}°C "
+        f"{'더 가파릅니다' if diff > 0 else '더 완만합니다' if diff < 0 else '동일합니다'}."
+    )
+else:
+    st.warning("최근 20년 구간에 유효한 연도가 2개 미만이라 기울기를 비교할 수 없습니다.")
 
 # ---------------- 슬라이더로 예상 기온 확인 ----------------
 st.subheader("연도별 예상 기온 확인")
